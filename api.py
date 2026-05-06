@@ -91,15 +91,29 @@ except ImportError:
 
 
 @app.route("/")
-def index():
-    """API information endpoint"""
+def home():
+    """Serve the main web UI."""
+    return send_from_directory("public", "app.html")
+
+
+@app.route("/app")
+def web_app():
+    """Alias route for the web UI."""
+    return send_from_directory("public", "app.html")
+
+
+@app.route("/info")
+def info():
+    """API information endpoint."""
     return jsonify(
         {
             "name": "TeraBox API",
-            "version": "2.0",
+            "version": "2.1",
             "status": "operational",
             "endpoints": {
-                "/": "API information",
+                "/": "Web UI",
+                "/app": "Web UI alias",
+                "/info": "API information",
                 "/api": "Unified endpoint - file listing and proxy modes (resolve, page, api, stream, segment)",
                 "/api2": "Fetch files with direct download links",
                 "/help": "Detailed usage instructions",
@@ -109,14 +123,6 @@ def index():
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
     )
-
-
-
-
-@app.route("/app")
-def web_app():
-    """Serve the professional web UI for stream/download workflows."""
-    return send_from_directory("public", "app.html")
 
 
 @app.route("/health")
