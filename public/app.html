@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>TeraBox Stream & Download</title>
+  <style>
+    :root{--bg:#0b1220;--card:#121a2b;--muted:#97a3ba;--text:#e8eefc;--pri:#3b82f6;--ok:#16a34a}
+    *{box-sizing:border-box} body{margin:0;font-family:Inter,system-ui,Arial;background:linear-gradient(180deg,#0a1020,#0f172a);color:var(--text)}
+    .wrap{max-width:1100px;margin:0 auto;padding:24px}
+    .card{background:rgba(18,26,43,.95);border:1px solid #263247;border-radius:16px;padding:20px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+    h1{margin:0 0 8px}.muted{color:var(--muted)}
+    .row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1}
+    input,button,select{width:100%;padding:12px;border-radius:10px;border:1px solid #334155;background:#0b1324;color:var(--text)}
+    button{background:var(--pri);border:none;font-weight:700;cursor:pointer}.btn2{background:#334155}
+    .grid{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-top:16px}.ad{min-height:160px;display:grid;place-items:center;border:1px dashed #475569;color:#94a3b8;border-radius:12px}
+    .files{margin-top:14px}.item{padding:10px;border:1px solid #2e3b52;border-radius:10px;margin:8px 0}
+    a{color:#93c5fd}.ok{color:#86efac}.err{color:#fca5a5}
+    video{width:100%;background:black;border-radius:10px;margin-top:12px}
+    @media (max-width:900px){.grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h1>TeraBox Stream & Download</h1>
+    <p class="muted">Paste a TeraBox share URL, fetch file details, stream compatible video, or download files directly.</p>
+    <div class="row">
+      <input id="url" placeholder="https://terabox.com/s/1xxxx..." />
+      <input id="pwd" placeholder="Password (optional)" />
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button id="fetch">Fetch Details</button>
+      <button id="play" class="btn2">Load Stream</button>
+    </div>
+    <p id="status" class="muted"></p>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h3>File Details</h3>
+      <div id="files" class="files"></div>
+      <video id="player" controls playsinline></video>
+      <p class="muted">Tip: HLS streams require browser support. If playback fails, use download link.</p>
+    </div>
+    <div class="card">
+      <h3>Sponsored</h3>
+      <div class="ad">Ad Slot 300x250</div>
+      <div class="ad" style="margin-top:12px">Ad Slot 300x600</div>
+    </div>
+  </div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+function surlFrom(u){try{const x=new URL(u);if(x.searchParams.get('surl')) return x.searchParams.get('surl').replace(/^1/,'');const m=x.pathname.match(/\/s\/([^/?#]+)/);return m?m[1].replace(/^1/,''):'';}catch{return ''}}
+$('fetch').onclick=async()=>{
+  const url=$('url').value.trim(), pwd=$('pwd').value.trim();
+  if(!url) return $('status').innerHTML='<span class="err">Please enter URL.</span>';
+  $('status').textContent='Fetching details...'; $('files').innerHTML='';
+  const q=new URLSearchParams({url}); if(pwd) q.set('pwd',pwd);
+  const r=await fetch('/api2?'+q.toString()); const d=await r.json();
+  if(!r.ok||d.status!=='success'){ $('status').innerHTML=`<span class="err">${d.message||d.error||'Failed'}</span>`; return; }
+  $('status').innerHTML=`<span class="ok">Loaded ${d.total_files} file(s).</span>`;
+  $('files').innerHTML=d.files.map(f=>`<div class="item"><strong>${f.filename}</strong><br><span class="muted">${f.size}</span><br><a href="${f.direct_link||f.download_link}" target="_blank" rel="noopener">Download</a></div>`).join('');
+};
+$('play').onclick=()=>{
+  const surl=surlFrom($('url').value.trim());
+  if(!surl){$('status').innerHTML='<span class="err">Could not extract surl from URL.</span>'; return;}
+  const src='/api?mode=stream&surl='+encodeURIComponent(surl);
+  $('player').src=src; $('player').load(); $('player').play().catch(()=>{});
+  $('status').innerHTML='<span class="ok">Stream loaded. Press play if it does not auto-start.</span>';
+};
+</script>
+</body>
+</html>

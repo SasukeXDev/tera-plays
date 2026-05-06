@@ -8,7 +8,7 @@ Business logic has been separated into dedicated modules:
 - terabox_client.py: TeraBox API client logic
 """
 
-from flask import Flask, request, jsonify, Response
+from flask import Flask, request, jsonify, Response, send_from_directory
 from datetime import datetime, timezone
 import logging
 import time
@@ -109,6 +109,14 @@ def index():
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
     )
+
+
+
+
+@app.route("/app")
+def web_app():
+    """Serve the professional web UI for stream/download workflows."""
+    return send_from_directory("public", "app.html")
 
 
 @app.route("/health")
