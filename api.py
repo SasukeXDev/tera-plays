@@ -8,7 +8,7 @@ Business logic has been separated into dedicated modules:
 - terabox_client.py: TeraBox API client logic
 """
 
-from flask import Flask, request, jsonify, Response
+from flask import Flask, request, jsonify, Response, render_template_string
 from datetime import datetime, timezone
 import logging
 import time
@@ -67,6 +67,8 @@ def create_app() -> Flask:
 # Create module-level `app` so Vercel/Gunicorn can import it: `from api import app`
 app = create_app()
 
+HOMEPAGE_TEMPLATE = """<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>TeraBox Premium Stream</title><script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script><style>body{margin:0;font-family:Inter,Arial;background:radial-gradient(circle at top,#111827,#020617);color:#e5e7eb}.wrap{max-width:1150px;margin:auto;padding:28px}.card{background:#0f172acc;border:1px solid #334155;border-radius:16px;padding:20px}.hero{display:grid;grid-template-columns:2fr 1fr;gap:18px}.row{display:flex;gap:10px}input,button{padding:12px;border-radius:10px;border:1px solid #334155;background:#020617;color:#fff;width:100%}button{background:linear-gradient(90deg,#2563eb,#7c3aed);border:0;font-weight:700;cursor:pointer}.files .item{border:1px solid #334155;border-radius:10px;padding:12px;margin:8px 0}.muted{color:#94a3b8}video{width:100%;margin-top:12px;border-radius:10px;background:#000}.ad{min-height:120px;border:1px dashed #475569;border-radius:10px;display:grid;place-items:center;color:#94a3b8;margin-top:10px}@media(max-width:900px){.hero{grid-template-columns:1fr}}</style></head><body><div class="wrap"><div class="card"><h1>TeraBox Stream & Direct Download</h1><p class="muted">Enter a TeraBox URL to fetch all file/video details, stream instantly, and copy direct download links.</p><div class="row"><input id="url" placeholder="https://terabox.com/s/1xxxx"><input id="pwd" placeholder="Password (optional)"></div><div class="row" style="margin-top:10px"><button id="fetch">Fetch Details</button><button id="stream">Start Streaming</button></div><p id="status" class="muted"></p></div><div class="hero" style="margin-top:16px"><div class="card"><h3>Files & Video Info</h3><div id="files" class="files"></div><video id="player" controls playsinline></video></div><div class="card"><h3>Sponsored</h3><div class="ad">Premium Ad Slot</div><div class="ad">Sticky Sidebar Ad</div></div></div></div><script>const $=i=>document.getElementById(i);let hls=null;const base=window.location.origin;const msg=(t,e=false)=>$('status').innerHTML=`<span style="color:${e?'#fda4af':'#86efac'}">${t}</span>`;const surl=u=>{try{const x=new URL(u);const q=x.searchParams.get('surl');if(q)return q.replace(/^1/,'');const m=x.pathname.match(/\/s\/([^/?#]+)/);return m?m[1].replace(/^1/,''):''}catch{return ''}};$('fetch').onclick=async()=>{const url=$('url').value.trim();const pwd=$('pwd').value.trim();if(!url)return msg('Please enter a valid URL',true);$('files').innerHTML='';msg('Loading details...');const q=new URLSearchParams({url});if(pwd)q.set('pwd',pwd);try{const r=await fetch(`${base}/api2?${q.toString()}`);const d=await r.json();if(!r.ok||d.status!=='success')return msg(d.message||d.error||'Failed to fetch',true);$('files').innerHTML=d.files.map(f=>`<div class="item"><strong>${f.filename||'Unknown'}</strong><br><span class="muted">Size: ${f.size||'n/a'}</span><br><span class="muted">Path: ${f.path||'n/a'}</span><br><a style="color:#93c5fd" href="${f.direct_link||f.download_link||'#'}" target="_blank">Direct Download</a></div>`).join('');msg(`Loaded ${d.total_files} files`);}catch(err){msg('Request failed: '+err.message,true)}};$('stream').onclick=()=>{const code=surl($('url').value.trim());if(!code)return msg('Unable to extract share code from URL',true);const src=`${base}/api?mode=stream&surl=${encodeURIComponent(code)}`;const v=$('player');if(hls){hls.destroy();hls=null;}if(window.Hls&&Hls.isSupported()){hls=new Hls();hls.loadSource(src);hls.attachMedia(v);}else{v.src=src;}v.play().catch(()=>{});msg('Stream is ready. Click play if it does not start.');};</script></body></html>"""
+
 
 # Basic CORS for browser clients (no extra dependency)
 @app.after_request
@@ -91,15 +93,29 @@ except ImportError:
 
 
 @app.route("/")
-def index():
-    """API information endpoint"""
+def home():
+    """Serve the main web UI."""
+    return render_template_string(HOMEPAGE_TEMPLATE)
+
+
+@app.route("/app")
+def web_app():
+    """Alias route for the web UI."""
+    return render_template_string(HOMEPAGE_TEMPLATE)
+
+
+@app.route("/info")
+def info():
+    """API information endpoint."""
     return jsonify(
         {
             "name": "TeraBox API",
-            "version": "2.0",
+            "version": "2.1",
             "status": "operational",
             "endpoints": {
-                "/": "API information",
+                "/": "Web UI",
+                "/app": "Web UI alias",
+                "/info": "API information",
                 "/api": "Unified endpoint - file listing and proxy modes (resolve, page, api, stream, segment)",
                 "/api2": "Fetch files with direct download links",
                 "/help": "Detailed usage instructions",

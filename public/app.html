@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>TeraBox Stream & Download</title>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <style>
+    :root{--card:#121a2b;--muted:#97a3ba;--text:#e8eefc;--pri:#3b82f6;--ok:#16a34a}
+    *{box-sizing:border-box} body{margin:0;font-family:Inter,system-ui,Arial;background:linear-gradient(180deg,#0a1020,#0f172a);color:var(--text)}
+    .wrap{max-width:1100px;margin:0 auto;padding:24px}.card{background:rgba(18,26,43,.95);border:1px solid #263247;border-radius:16px;padding:20px}
+    h1{margin:0 0 8px}.muted{color:var(--muted)} .row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1}
+    input,button{width:100%;padding:12px;border-radius:10px;border:1px solid #334155;background:#0b1324;color:var(--text)}
+    button{background:var(--pri);border:none;font-weight:700;cursor:pointer}.btn2{background:#334155}
+    .grid{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-top:16px}.ad{min-height:160px;display:grid;place-items:center;border:1px dashed #475569;color:#94a3b8;border-radius:12px}
+    .item{padding:10px;border:1px solid #2e3b52;border-radius:10px;margin:8px 0} a{color:#93c5fd} .ok{color:#86efac}.err{color:#fca5a5}
+    video{width:100%;background:#000;border-radius:10px;margin-top:12px}
+    @media (max-width:900px){.grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h1>TeraBox Stream & Download</h1>
+    <p class="muted">Paste a TeraBox URL to fetch details, stream video, and download files. <a href="/info" target="_blank">API info</a></p>
+    <div class="row"><input id="url" placeholder="https://terabox.com/s/1xxxx..." /><input id="pwd" placeholder="Password (optional)" /></div>
+    <div class="row" style="margin-top:10px"><button id="fetch">Fetch Details</button><button id="play" class="btn2">Load Stream</button></div>
+    <p id="status" class="muted"></p>
+  </div>
+  <div class="grid">
+    <div class="card"><h3>Files</h3><div id="files"></div><video id="player" controls playsinline></video></div>
+    <div class="card"><h3>Sponsored</h3><div class="ad">Ad Slot 300x250</div><div class="ad" style="margin-top:12px">Ad Slot 300x600</div></div>
+  </div>
+</div>
+<script>
+const $=id=>document.getElementById(id); let hls;
+const apiBase=window.location.origin;
+function surlFrom(u){try{const x=new URL(u);if(x.searchParams.get('surl')) return x.searchParams.get('surl').replace(/^1/,'');const m=x.pathname.match(/\/s\/([^/?#]+)/);return m?m[1].replace(/^1/,''):'';}catch{return ''}}
+function setStatus(msg,ok=false){$('status').innerHTML=`<span class="${ok?'ok':'err'}">${msg}</span>`;}
+$('fetch').onclick=async()=>{try{
+  const url=$('url').value.trim(), pwd=$('pwd').value.trim(); if(!url) return setStatus('Please enter URL.');
+  $('status').textContent='Fetching details...'; $('files').innerHTML='';
+  const q=new URLSearchParams({url}); if(pwd) q.set('pwd',pwd);
+  const r=await fetch(`${apiBase}/api2?${q}`); const d=await r.json();
+  if(!r.ok||d.status!=='success') return setStatus(d.message||d.error||'Failed to fetch details');
+  setStatus(`Loaded ${d.total_files} file(s).`,true);
+  $('files').innerHTML=d.files.map(f=>`<div class="item"><strong>${f.filename||'Unknown'}</strong><br><span class="muted">${f.size||''}</span><br><a href="${f.direct_link||f.download_link||'#'}" target="_blank" rel="noopener">Download</a></div>`).join('') || '<p class="muted">No files returned.</p>';
+}catch(e){setStatus('Request failed: '+e.message)}};
+$('play').onclick=()=>{
+  const surl=surlFrom($('url').value.trim()); if(!surl) return setStatus('Could not extract surl from URL.');
+  const src=`${apiBase}/api?mode=stream&surl=${encodeURIComponent(surl)}`; const v=$('player');
+  if(hls){hls.destroy();hls=null;}
+  if(window.Hls&&Hls.isSupported()){hls=new Hls(); hls.loadSource(src); hls.attachMedia(v);} else {v.src=src;}
+  v.play().catch(()=>{}); setStatus('Stream loaded. Press play if needed.',true);
+};
+</script>
+</body>
+</html>
